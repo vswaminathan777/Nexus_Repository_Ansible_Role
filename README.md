@@ -82,16 +82,13 @@ Before running this project, make sure you have:
 
 ## Required Collections
 
-Install the collections listed in `requirements.yml` before running the playbook:
+This repository does not currently require any non-core Ansible collections.
+
+If you later add collection-based modules, you can declare them in `requirements.yml` and install them with:
 
 ```bash
 ansible-galaxy collection install -r requirements.yml
 ```
-
-Current required collections:
-
-- `community.general`
-- `community.postgresql`
 
 ## Inventory Setup
 
@@ -404,21 +401,20 @@ For a new environment, the safest order is:
 1. update `inventory/hosts.yml`
 2. update `inventory/group_vars/nexus/nexus.yml`
 3. verify `inventory/group_vars/nexus/secrets.yml` is encrypted and valid
-4. install collections with `ansible-galaxy collection install -r requirements.yml`
-5. verify Vault access with `ansible-vault view inventory/group_vars/nexus/secrets.yml`
-6. run deployment:
+4. verify Vault access with `ansible-vault view inventory/group_vars/nexus/secrets.yml`
+5. run deployment:
 
 ```bash
 ansible-playbook playbooks/nexus-playbook.yml -i inventory/hosts.yml --tags deployment
 ```
 
-7. run configuration:
+6. run configuration:
 
 ```bash
 ansible-playbook playbooks/nexus-playbook.yml -i inventory/hosts.yml --tags configuration
 ```
 
-8. once validated, run the full playbook normally for repeatable operations
+7. once validated, run the full playbook normally for repeatable operations
 
 ## Troubleshooting
 
