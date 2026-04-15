@@ -1,0 +1,38 @@
+# Ansible Vault files
+.vault_pass
+vault_pass*
+vault.key
+
+# Encrypted secrets (reference only - actual secrets in vault)
+inventory/group_vars/*/secrets.yml
+
+# Sensitive files
+.env
+.env.local
+*.key
+*.pem
+*.pub
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Ansible
+*.retry
+
+# Local Vault docs
+VAULT_QUICK_REFERENCE.md
+VAULT_SETUP_GUIDE.md

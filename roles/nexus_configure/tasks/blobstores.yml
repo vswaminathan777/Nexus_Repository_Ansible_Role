@@ -1,0 +1,94 @@
+---
+- name: Check existing blob stores
+  ansible.builtin.uri:
+    url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_healthcheck_port }}/service/rest/v1/blobstores"
+    method: GET
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: 200
+  register: nexus_existing_blobstores
+  run_once: true
+  
+  
+- name: Ensure file blob store paths exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ nexus_user }}"
+    group: "{{ nexus_group }}"
+    mode: "0755"
+    recurse: true
+  loop: "{{ nexus_blobstores | selectattr('type', 'equalto', 'file') | list }}"
+  when: (nexus_blobstores | default([])) | length > 0
+
+- name: Create shared file blob stores
+  ansible.builtin.uri:
+    url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_healthcheck_port }}/service/rest/v1/blobstores/file"
+    method: POST
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body: >-
+      {{
+        {
+          'path': item.path,
+          'name': item.name
+        }
+        | combine(
+            (
+              item.softQuota is defined
+            )
+            | ternary(
+                {
+                  'softQuota': {
+                    'type': item.softQuota.type | default('spaceRemainingQuota'),
+                    'limit': item.softQuota.limit | default(0)
+                  }
+                },
+                {}
+              )
+          )
+      }}
+    status_code: [200, 201, 400]
+  loop: "{{ nexus_blobstores | selectattr('type', 'equalto', 'file') | list }}"
+  when: item.name not in (nexus_existing_blobstores.json | map(attribute='name') | list)
+  loop_control:
+    label: "{{ item.name }}"
+  run_once: true
+
+- name: Create S3 blob stores
+  ansible.builtin.uri:
+    url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_healthcheck_port }}/service/rest/v1/blobstores/s3"
+    method: POST
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      name: "{{ item.name }}"
+      bucketConfiguration:
+        bucket:
+          name: "{{ item.bucket }}"
+          region: "{{ item.region }}"
+          prefix: "{{ item.prefix | default('') }}"
+          expiration: "{{ item.expiration_days | default(0) }}"
+        advancedBucketConnection:
+          endpoint: "{{ item.endpoint | default('') }}"
+          forcePathStyle: "{{ item.force_path_style | default(false) }}"
+        bucketSecurity:
+          accessKeyId: "{{ item.aws_access_key_id }}"
+          secretAccessKey: "{{ item.aws_secret_access_key }}"
+      softQuota:
+        type: "spaceRemainingQuota"
+        limit: "{{ item.soft_quota_limit | default(0) }}"
+    status_code: [200, 201, 400]
+  loop: "{{ nexus_blobstores | selectattr('type', 'equalto', 's3') | list }}"
+  when: item.name not in (nexus_existing_blobstores.json | map(attribute='name') | list)
+  loop_control:
+    label: "{{ item.name }}"
+  run_once: true

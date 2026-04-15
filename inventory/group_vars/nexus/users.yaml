@@ -1,0 +1,20 @@
+nexus_users:
+  - userid: ci-bot
+    first_name: CI
+    last_name: Bot
+    email: ci-bot@example.com
+    password: "{{ vault_ci_bot_password }}"
+    status: active
+    roles:
+      - ci-maven-deploy
+      - ci-docker-push
+
+  - userid: developer1
+    first_name: Dev
+    last_name: One
+    email: dev1@example.com
+    password: "{{ vault_dev1_password }}"
+    status: active
+    roles:
+      - developers-maven-read
+      - developers-npm-read

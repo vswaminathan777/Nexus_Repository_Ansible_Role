@@ -1,0 +1,116 @@
+---
+# ----------------------------
+# Manage Nexus roles
+# ----------------------------
+
+- name: Reset per-role working facts
+  ansible.builtin.set_fact:
+    nexus_role_desired_body: {}
+    nexus_role_current_normalized: {}
+
+- name: Read current Nexus role
+  ansible.builtin.uri:
+    url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_listen_port }}/service/rest/v1/security/roles/{{ item.id }}"
+    method: GET
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200, 404]
+    return_content: true
+  loop: "{{ nexus_roles }}"
+  loop_control:
+    label: "{{ item.id }}"
+  register: nexus_role_current
+  run_once: true
+  no_log: true
+
+- name: Debug current Nexus role lookup
+  ansible.builtin.debug:
+    msg: "Role {{ item.item.id }} lookup returned status={{ item.status }}"
+  loop: "{{ nexus_role_current.results }}"
+  loop_control:
+    label: "{{ item.item.id }}"
+  run_once: true
+
+- name: Create Nexus role when missing
+  ansible.builtin.uri:
+    url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_listen_port }}/service/rest/v1/security/roles"
+    method: POST
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      id: "{{ item.item.id }}"
+      name: "{{ item.item.name }}"
+      description: "{{ item.item.description | default('') }}"
+      privileges: "{{ item.item.privileges | default([]) }}"
+      roles: "{{ item.item.roles | default([]) }}"
+    status_code: [200, 201, 204]
+    return_content: true
+  loop: "{{ nexus_role_current.results }}"
+  loop_control:
+    label: "{{ item.item.id }}"
+  when: item.status == 404
+  register: nexus_role_create_result
+  run_once: true
+  no_log: true
+
+- name: Debug role create decision
+  ansible.builtin.debug:
+    msg: "Creating role {{ item.item.id }} because status={{ item.status }}"
+  loop: "{{ nexus_role_current.results }}"
+  loop_control:
+    label: "{{ item.item.id }}"
+  when: item.status == 404
+  run_once: true
+
+- name: Update Nexus role when drift detected
+  ansible.builtin.uri:
+    url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_listen_port }}/service/rest/v1/security/roles/{{ item.item.id }}"
+    method: PUT
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      id: "{{ item.item.id }}"
+      name: "{{ item.item.name }}"
+      description: "{{ item.item.description | default('') }}"
+      privileges: "{{ item.item.privileges | default([]) }}"
+      roles: "{{ item.item.roles | default([]) }}"
+    status_code: [200, 204]
+    return_content: true
+  loop: "{{ nexus_role_current.results }}"
+  loop_control:
+    label: "{{ item.item.id }}"
+  when:
+    - item.status == 200
+    - >
+      (item.json.id | default('')) != (item.item.id | default('')) or
+      (item.json.name | default('')) != (item.item.name | default('')) or
+      (item.json.description | default('')) != (item.item.description | default('')) or
+      ((item.json.privileges | default([])) | sort) != ((item.item.privileges | default([])) | sort) or
+      ((item.json.roles | default([])) | sort) != ((item.item.roles | default([])) | sort)
+  register: nexus_role_update_result
+  run_once: true
+  no_log: true
+
+- name: Debug role update decision
+  ansible.builtin.debug:
+    msg: "Updating role {{ item.item.id }} because drift was detected"
+  loop: "{{ nexus_role_current.results }}"
+  loop_control:
+    label: "{{ item.item.id }}"
+  when:
+    - item.status == 200
+    - >
+      (item.json.id | default('')) != (item.item.id | default('')) or
+      (item.json.name | default('')) != (item.item.name | default('')) or
+      (item.json.description | default('')) != (item.item.description | default('')) or
+      ((item.json.privileges | default([])) | sort) != ((item.item.privileges | default([])) | sort) or
+      ((item.json.roles | default([])) | sort) != ((item.item.roles | default([])) | sort)
+  run_once: true

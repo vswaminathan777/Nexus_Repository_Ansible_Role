@@ -1,0 +1,139 @@
+---
+nexus_privileges_manage: true
+
+nexus_privileges:
+
+  # ============================================================
+  # Maven - repository-wide access
+  # ============================================================
+  - id: nx-repo-maven-releases-read
+    name: nx-repo-maven-releases-read
+    description: Read access to maven-releases
+    type: repository-view
+    format: maven2
+    repository: maven-releases
+    actions: [browse, read]
+
+  - id: nx-repo-maven-releases-write
+    name: nx-repo-maven-releases-write
+    description: Deploy to maven-releases
+    type: repository-view
+    format: maven2
+    repository: maven-releases
+    actions: [browse, read, add, edit]
+
+  - id: nx-repo-maven-snapshots-write
+    name: nx-repo-maven-snapshots-write
+    description: Deploy to maven-snapshots
+    type: repository-view
+    format: maven2
+    repository: maven-snapshots
+    actions: [browse, read, add, edit]
+
+  - id: nx-repo-maven-public-read
+    name: nx-repo-maven-public-read
+    description: Read access to maven-public group
+    type: repository-view
+    format: maven2
+    repository: maven-public
+    actions: [browse, read]
+
+  # ============================================================
+  # Maven - selector-based (fine-grained)
+  # ============================================================
+  - id: nx-maven-team-a-releases-read
+    name: nx-maven-team-a-releases-read
+    description: Read Team A artifacts only
+    type: repository-content-selector
+    selector: team-a-maven-selector
+    format: maven2
+    repository: maven-releases
+    actions: [browse, read]
+
+  - id: nx-maven-team-a-releases-write
+    name: nx-maven-team-a-releases-write
+    description: Write Team A artifacts only
+    type: repository-content-selector
+    selector: team-a-maven-selector
+    format: maven2
+    repository: maven-releases
+    actions: [browse, read, add, edit]
+
+  # ============================================================
+  # NPM - repository-wide
+  # ============================================================
+  - id: nx-repo-npm-private-read
+    name: nx-repo-npm-private-read
+    description: Read npm private repo
+    type: repository-view
+    format: npm
+    repository: npm-private
+    actions: [browse, read]
+
+  - id: nx-repo-npm-private-write
+    name: nx-repo-npm-private-write
+    description: Publish to npm private repo
+    type: repository-view
+    format: npm
+    repository: npm-private
+    actions: [browse, read, add, edit]
+
+  - id: nx-repo-npm-group-read
+    name: nx-repo-npm-group-read
+    description: Read npm group
+    type: repository-view
+    format: npm
+    repository: npm-group
+    actions: [browse, read]
+
+  # ============================================================
+  # Docker - repository-wide
+  # ============================================================
+  - id: nx-repo-docker-hosted-read
+    name: nx-repo-docker-hosted-read
+    description: Pull from docker-hosted
+    type: repository-view
+    format: docker
+    repository: docker-hosted
+    actions: [browse, read]
+
+  - id: nx-repo-docker-hosted-write
+    name: nx-repo-docker-hosted-write
+    description: Push to docker-hosted
+    type: repository-view
+    format: docker
+    repository: docker-hosted
+    actions: [browse, read, add, edit]
+
+  - id: nx-repo-docker-group-read
+    name: nx-repo-docker-group-read
+    description: Pull from docker-group
+    type: repository-view
+    format: docker
+    repository: docker-group
+    actions: [browse, read]
+
+  # ============================================================
+  # Application-level
+  # ============================================================
+  - id: nx-search-read
+    name: nx-search-read
+    description: Allow search
+    type: application
+    domain: search
+    actions: [read]
+
+  - id: nx-healthcheck-read
+    name: nx-healthcheck-read
+    description: Allow healthcheck view
+    type: application
+    domain: healthcheck
+    actions: [read]
+
+  # Optional: keep only if truly needed
+  - id: nx-healthcheck-read-sde
+    name: nx-healthcheck-read-sde
+    description: Allow healthcheck view (SDE)
+    type: application
+    domain: healthcheck
+    actions: [read]

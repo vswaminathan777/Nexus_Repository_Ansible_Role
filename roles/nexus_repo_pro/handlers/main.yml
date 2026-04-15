@@ -1,0 +1,105 @@
+---
+- name: Restart Nexus with systemd
+  listen: restart nexus
+  ansible.builtin.systemd:
+    name: "{{ nexus_service_name }}"
+    state: restarted
+  when: nexus_use_systemd | bool
+
+- name: Stop Nexus gracefully in non-systemd mode
+  listen: restart nexus
+  ansible.builtin.shell: "./bin/nexus stop"
+  args:
+    chdir: "{{ nexus_home }}"
+  become: true
+  become_user: "{{ nexus_user }}"
+  become_method: su
+  register: nexus_stop_result
+  failed_when: false
+  when: not (nexus_use_systemd | bool)
+
+- name: Wait for Nexus port to stop gracefully in non-systemd mode
+  listen: restart nexus
+  ansible.builtin.wait_for:
+    host: "127.0.0.1"
+    port: "{{ nexus_listen_port }}"
+    state: stopped
+    timeout: 90
+  register: nexus_stop_wait
+  failed_when: false
+  when: not (nexus_use_systemd | bool)
+
+- name: Find Nexus Java PID only if graceful stop failed
+  listen: restart nexus
+  ansible.builtin.shell: "pgrep -f 'sonatype-nexus-repository|org.sonatype.nexus|nexus-{{ nexus_version }}' || true"
+  register: nexus_pids
+  changed_when: false
+  when:
+    - not (nexus_use_systemd | bool)
+    - nexus_stop_wait is defined
+    - nexus_stop_wait.failed | default(false)
+
+- name: Force kill Nexus Java PID only if still running
+  listen: restart nexus
+  ansible.builtin.shell: |
+    for pid in {{ nexus_pids.stdout_lines | default([]) | join(' ') }}; do
+      kill -TERM "$pid" || true
+    done
+    sleep 5
+    for pid in {{ nexus_pids.stdout_lines | default([]) | join(' ') }}; do
+      kill -0 "$pid" 2>/dev/null && kill -KILL "$pid" || true
+    done
+  failed_when: false
+  when:
+    - not (nexus_use_systemd | bool)
+    - nexus_stop_wait is defined
+    - nexus_stop_wait.failed | default(false)
+    - (nexus_pids.stdout | trim) != ""
+
+- name: Wait for Nexus port to stop after forced kill in non-systemd mode
+  listen: restart nexus
+  ansible.builtin.wait_for:
+    host: "127.0.0.1"
+    port: "{{ nexus_listen_port }}"
+    state: stopped
+    timeout: 90
+  when:
+    - not (nexus_use_systemd | bool)
+    - nexus_stop_wait is defined
+    - nexus_stop_wait.failed | default(false)
+
+- name: Remove stale Nexus pid file only after forced stop
+  listen: restart nexus
+  ansible.builtin.file:
+    path: "{{ nexus_data_dir }}/nexus.pid"
+    state: absent
+  when:
+    - not (nexus_use_systemd | bool)
+    - nexus_stop_wait is defined
+    - nexus_stop_wait.failed | default(false)
+
+- name: Remove stale Ehcache lock directory only after forced stop
+  listen: restart nexus
+  ansible.builtin.file:
+    path: "{{ nexus_data_dir }}/tmp/nexus-ehcache"
+    state: absent
+  when:
+    - not (nexus_use_systemd | bool)
+    - nexus_stop_wait is defined
+    - nexus_stop_wait.failed | default(false)
+
+- name: Start Nexus directly in non-systemd mode
+  listen: restart nexus
+  ansible.builtin.shell: "./bin/nexus start"
+  args:
+    chdir: "{{ nexus_home }}"
+  become: true
+  become_user: "{{ nexus_user }}"
+  become_method: su
+  when: not (nexus_use_systemd | bool)
+
+- name: Reload systemd daemon
+  listen: daemon reload
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: nexus_use_systemd | bool

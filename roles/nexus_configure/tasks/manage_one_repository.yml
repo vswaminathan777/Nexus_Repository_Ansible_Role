@@ -1,0 +1,332 @@
+---
+- name: Define Nexus base URL, recipe key, endpoint, and fragments
+  ansible.builtin.set_fact:
+    nexus_base_url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_healthcheck_port }}"
+    nexus_repo_recipe_key: "{{ nexus_repo.format }}_{{ nexus_repo.type }}"
+    nexus_repo_format_api_map:
+      maven2: maven
+      npm: npm
+      docker: docker
+    nexus_repo_endpoint_base: >-
+      /service/rest/v1/repositories/{{ nexus_repo_format_api_map[nexus_repo.format] | default(nexus_repo.format) }}/{{ nexus_repo.type }}
+
+    nexus_repo_required_fields:
+      default:
+        - name
+        - format
+        - type
+        - blob_store
+      proxy:
+        - remote_url
+      group:
+        - members
+      docker_hosted:
+        - http_port
+
+    nexus_repo_type_desired_fragments:
+      hosted:
+        storage:
+          writePolicy: "{{ (nexus_repo.write_policy | default('ALLOW')) | upper }}"
+      proxy:
+        proxy:
+          remoteUrl: "{{ nexus_repo.remote_url | default('') }}"
+          contentMaxAge: "{{ nexus_repo.content_max_age | default(1440) }}"
+          metadataMaxAge: "{{ nexus_repo.metadata_max_age | default(1440) }}"
+        negativeCache:
+          enabled: "{{ nexus_repo.negative_cache_enabled | default(true) }}"
+          timeToLive: "{{ nexus_repo.negative_cache_ttl | default(1440) }}"
+        httpClient:
+          blocked: "{{ nexus_repo.http_client_blocked | default(false) }}"
+          autoBlock: "{{ nexus_repo.http_client_auto_block | default(true) }}"
+      group:
+        group:
+          memberNames: "{{ nexus_repo.members | default([]) }}"
+
+    nexus_repo_format_desired_fragments:
+      maven2:
+        maven:
+          versionPolicy: "{{ (nexus_repo.version_policy | default('RELEASE')) | upper }}"
+          layoutPolicy: "{{ (nexus_repo.layout_policy | default('STRICT')) | upper }}"
+      npm: {}
+      docker:
+        docker:
+          v1Enabled: "{{ nexus_repo.docker_v1_enabled | default(false) }}"
+          forceBasicAuth: "{{ nexus_repo.force_basic_auth | default(true) }}"
+
+    nexus_repo_recipe_desired_fragments:
+      maven2_hosted:
+        storage:
+          writePolicy: "{{ (nexus_repo.write_policy | default('ALLOW_ONCE')) | upper }}"
+        cleanup:
+          policyNames: "{{ nexus_repo.cleanup_policies | default([]) }}"
+        component:
+          proprietaryComponents: "{{ nexus_repo.proprietary_components | default(false) }}"
+        maven:
+          contentDisposition: "{{ (nexus_repo.content_disposition | default('INLINE')) | upper }}"
+
+      docker_proxy:
+        dockerProxy:
+          indexType: "{{ nexus_repo.docker_index_type | default('HUB') }}"
+          cacheForeignLayers: "{{ nexus_repo.cache_foreign_layers | default(false) }}"
+          foreignLayerUrlWhitelist: "{{ nexus_repo.foreign_layer_url_whitelist | default([]) }}"
+          useTrustStoreForIndexAccess: "{{ nexus_repo.use_trust_store_for_index_access | default(false) }}"
+
+- name: Build required field list
+  ansible.builtin.set_fact:
+    nexus_repo_required: >-
+      {{
+        (nexus_repo_required_fields.default | default([]))
+        + (nexus_repo_required_fields[nexus_repo.type] | default([]))
+        + (nexus_repo_required_fields[nexus_repo_recipe_key] | default([]))
+      }}
+
+- name: Validate required repository fields
+  ansible.builtin.assert:
+    that:
+      - nexus_repo[item] is defined
+      - nexus_repo[item] is not none
+      - (nexus_repo[item] is string and (nexus_repo[item] | trim | length > 0)) or (nexus_repo[item] is not string)
+    fail_msg: "Repository '{{ nexus_repo.name | default('unknown') }}' is missing required field '{{ item }}'"
+  loop: "{{ nexus_repo_required }}"
+
+- name: Build desired repository payload
+  ansible.builtin.set_fact:
+    nexus_repo_desired_body:
+      name: "{{ nexus_repo.name }}"
+      online: "{{ nexus_repo.online | default(true) }}"
+      storage:
+        blobStoreName: "{{ nexus_repo.blob_store }}"
+        strictContentTypeValidation: "{{ nexus_repo.strict_content_type_validation | default(true) }}"
+
+- name: Merge repo type desired fragment
+  ansible.builtin.set_fact:
+    nexus_repo_desired_body: >-
+      {{
+        nexus_repo_desired_body
+        | combine(nexus_repo_type_desired_fragments[nexus_repo.type] | default({}), recursive=True)
+      }}
+
+- name: Merge repo format desired fragment
+  ansible.builtin.set_fact:
+    nexus_repo_desired_body: >-
+      {{
+        nexus_repo_desired_body
+        | combine(nexus_repo_format_desired_fragments[nexus_repo.format] | default({}), recursive=True)
+      }}
+
+- name: Merge exact recipe desired fragment
+  ansible.builtin.set_fact:
+    nexus_repo_desired_body: >-
+      {{
+        nexus_repo_desired_body
+        | combine(nexus_repo_recipe_desired_fragments[nexus_repo_recipe_key] | default({}), recursive=True)
+      }}
+
+- name: Add docker httpPort when defined
+  when:
+    - nexus_repo.format == 'docker'
+    - nexus_repo.http_port is defined
+    - nexus_repo.http_port | string | trim | length > 0
+  ansible.builtin.set_fact:
+    nexus_repo_desired_body: >-
+      {{
+        nexus_repo_desired_body
+        | combine({'docker': {'httpPort': nexus_repo.http_port}}, recursive=True)
+      }}
+
+- name: Add docker httpsPort when defined
+  when:
+    - nexus_repo.format == 'docker'
+    - nexus_repo.https_port is defined
+    - nexus_repo.https_port | string | trim | length > 0
+  ansible.builtin.set_fact:
+    nexus_repo_desired_body: >-
+      {{
+        nexus_repo_desired_body
+        | combine({'docker': {'httpsPort': nexus_repo.https_port}}, recursive=True)
+      }}
+
+- name: Add docker subdomain when defined
+  when:
+    - nexus_repo.format == 'docker'
+    - nexus_repo.subdomain is defined
+    - nexus_repo.subdomain | string | trim | length > 0
+  ansible.builtin.set_fact:
+    nexus_repo_desired_body: >-
+      {{
+        nexus_repo_desired_body
+        | combine({'docker': {'subdomain': nexus_repo.subdomain}}, recursive=True)
+      }}
+
+# Uncomment this temporarily if you need to inspect the exact outbound payload.
+# - name: Debug desired repository payload
+#   ansible.builtin.debug:
+#     var: nexus_repo_desired_body
+
+- name: Get current repository
+  ansible.builtin.uri:
+    url: "{{ nexus_base_url }}{{ nexus_repo_endpoint_base }}/{{ nexus_repo.name }}"
+    method: GET
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    status_code: [200, 404]
+    return_content: true
+  register: nexus_repo_get
+
+- name: Set current repository raw body
+  ansible.builtin.set_fact:
+    nexus_repo_current_raw: "{{ (nexus_repo_get.status == 200) | ternary(nexus_repo_get.json, {}) }}"
+
+- name: Define current repository comparison fragments
+  ansible.builtin.set_fact:
+    nexus_repo_type_current_fragments:
+      hosted:
+        storage:
+          writePolicy: "{{ nexus_repo_current_raw.storage.writePolicy | default('') }}"
+      proxy:
+        proxy:
+          remoteUrl: "{{ nexus_repo_current_raw.proxy.remoteUrl | default('') }}"
+          contentMaxAge: "{{ nexus_repo_current_raw.proxy.contentMaxAge | default(1440) }}"
+          metadataMaxAge: "{{ nexus_repo_current_raw.proxy.metadataMaxAge | default(1440) }}"
+        negativeCache:
+          enabled: "{{ nexus_repo_current_raw.negativeCache.enabled | default(true) }}"
+          timeToLive: "{{ nexus_repo_current_raw.negativeCache.timeToLive | default(1440) }}"
+        httpClient:
+          blocked: "{{ nexus_repo_current_raw.httpClient.blocked | default(false) }}"
+          autoBlock: "{{ nexus_repo_current_raw.httpClient.autoBlock | default(true) }}"
+      group:
+        group:
+          memberNames: "{{ nexus_repo_current_raw.group.memberNames | default([]) }}"
+
+    nexus_repo_format_current_fragments:
+      maven2:
+        maven:
+          versionPolicy: "{{ nexus_repo_current_raw.maven.versionPolicy | default('') }}"
+          layoutPolicy: "{{ nexus_repo_current_raw.maven.layoutPolicy | default('') }}"
+      npm: {}
+      docker:
+        docker:
+          v1Enabled: "{{ nexus_repo_current_raw.docker.v1Enabled | default(false) }}"
+          forceBasicAuth: "{{ nexus_repo_current_raw.docker.forceBasicAuth | default(true) }}"
+
+    nexus_repo_recipe_current_fragments:
+      maven2_hosted:
+        storage:
+          writePolicy: "{{ nexus_repo_current_raw.storage.writePolicy | default('') }}"
+        cleanup:
+          policyNames: "{{ nexus_repo_current_raw.cleanup.policyNames | default([]) }}"
+        component:
+          proprietaryComponents: "{{ nexus_repo_current_raw.component.proprietaryComponents | default(false) }}"
+        maven:
+          contentDisposition: "{{ nexus_repo_current_raw.maven.contentDisposition | default('') }}"
+
+      docker_proxy:
+        dockerProxy:
+          indexType: "{{ nexus_repo_current_raw.dockerProxy.indexType | default('HUB') }}"
+          cacheForeignLayers: "{{ nexus_repo_current_raw.dockerProxy.cacheForeignLayers | default(false) }}"
+          foreignLayerUrlWhitelist: "{{ nexus_repo_current_raw.dockerProxy.foreignLayerUrlWhitelist | default([]) }}"
+          useTrustStoreForIndexAccess: "{{ nexus_repo_current_raw.dockerProxy.useTrustStoreForIndexAccess | default(false) }}"
+
+- name: Build normalized current repository payload
+  ansible.builtin.set_fact:
+    nexus_repo_current_body:
+      name: "{{ nexus_repo_current_raw.name | default('') }}"
+      online: "{{ nexus_repo_current_raw.online | default(true) }}"
+      storage:
+        blobStoreName: "{{ nexus_repo_current_raw.storage.blobStoreName | default('') }}"
+        strictContentTypeValidation: "{{ nexus_repo_current_raw.storage.strictContentTypeValidation | default(true) }}"
+
+- name: Merge repo type current fragment
+  when: nexus_repo_get.status == 200
+  ansible.builtin.set_fact:
+    nexus_repo_current_body: >-
+      {{
+        nexus_repo_current_body
+        | combine(nexus_repo_type_current_fragments[nexus_repo.type] | default({}), recursive=True)
+      }}
+
+- name: Merge repo format current fragment
+  when: nexus_repo_get.status == 200
+  ansible.builtin.set_fact:
+    nexus_repo_current_body: >-
+      {{
+        nexus_repo_current_body
+        | combine(nexus_repo_format_current_fragments[nexus_repo.format] | default({}), recursive=True)
+      }}
+
+- name: Merge exact recipe current fragment
+  when: nexus_repo_get.status == 200
+  ansible.builtin.set_fact:
+    nexus_repo_current_body: >-
+      {{
+        nexus_repo_current_body
+        | combine(nexus_repo_recipe_current_fragments[nexus_repo_recipe_key] | default({}), recursive=True)
+      }}
+
+- name: Add current docker httpPort when present
+  when:
+    - nexus_repo_get.status == 200
+    - nexus_repo.format == 'docker'
+    - nexus_repo_current_raw.docker.httpPort is defined
+  ansible.builtin.set_fact:
+    nexus_repo_current_body: >-
+      {{
+        nexus_repo_current_body
+        | combine({'docker': {'httpPort': nexus_repo_current_raw.docker.httpPort}}, recursive=True)
+      }}
+
+- name: Add current docker httpsPort when present
+  when:
+    - nexus_repo_get.status == 200
+    - nexus_repo.format == 'docker'
+    - nexus_repo_current_raw.docker.httpsPort is defined
+  ansible.builtin.set_fact:
+    nexus_repo_current_body: >-
+      {{
+        nexus_repo_current_body
+        | combine({'docker': {'httpsPort': nexus_repo_current_raw.docker.httpsPort}}, recursive=True)
+      }}
+
+- name: Add current docker subdomain when present
+  when:
+    - nexus_repo_get.status == 200
+    - nexus_repo.format == 'docker'
+    - nexus_repo_current_raw.docker.subdomain is defined
+    - nexus_repo_current_raw.docker.subdomain | string | trim | length > 0
+  ansible.builtin.set_fact:
+    nexus_repo_current_body: >-
+      {{
+        nexus_repo_current_body
+        | combine({'docker': {'subdomain': nexus_repo_current_raw.docker.subdomain}}, recursive=True)
+      }}
+
+- name: Create repository when missing
+  when: nexus_repo_get.status == 404
+  ansible.builtin.uri:
+    url: "{{ nexus_base_url }}{{ nexus_repo_endpoint_base }}"
+    method: POST
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body: "{{ nexus_repo_desired_body }}"
+    headers:
+      Content-Type: application/json
+    status_code: [200, 201, 204]
+
+- name: Update repository when drift is detected
+  when:
+    - nexus_repo_get.status == 200
+    - nexus_repo_current_body != nexus_repo_desired_body
+  ansible.builtin.uri:
+    url: "{{ nexus_base_url }}{{ nexus_repo_endpoint_base }}/{{ nexus_repo.name }}"
+    method: PUT
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body: "{{ nexus_repo_desired_body }}"
+    headers:
+      Content-Type: application/json
+    status_code: [200, 201, 204]

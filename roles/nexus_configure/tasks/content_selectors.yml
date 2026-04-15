@@ -1,0 +1,124 @@
+---
+# ----------------------------
+# Validate content selector input
+# ----------------------------
+- name: Validate content selector fields
+  ansible.builtin.assert:
+    that:
+      - item.name is defined
+      - item.name | length > 0
+      - item.expression is defined
+      - item.expression | length > 0
+    fail_msg: "Content selector is missing required fields: {{ item | to_nice_json }}"
+  loop: "{{ nexus_content_selectors | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  run_once: true
+
+# ----------------------------
+# Read current content selectors
+# ----------------------------
+- name: Read current content selector
+  ansible.builtin.uri:
+    url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_listen_port }}/service/rest/v1/security/content-selectors/{{ item.name }}"
+    method: GET
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200, 404]
+    return_content: true
+  loop: "{{ nexus_content_selectors | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: nexus_content_selector_current
+  run_once: true
+  no_log: true
+
+- name: Debug current content selector lookup
+  ansible.builtin.debug:
+    msg: "Content selector {{ item.item.name }} lookup returned status={{ item.status }}"
+  loop: "{{ nexus_content_selector_current.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  run_once: true
+
+# ----------------------------
+# Create content selectors when missing
+# ----------------------------
+- name: Create content selector when missing
+  ansible.builtin.uri:
+    url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_listen_port }}/service/rest/v1/security/content-selectors"
+    method: POST
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      name: "{{ item.item.name }}"
+      description: "{{ item.item.description | default('') }}"
+      expression: "{{ item.item.expression }}"
+    status_code: [200, 201, 204]
+    return_content: true
+  loop: "{{ nexus_content_selector_current.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: item.status == 404
+  register: nexus_content_selector_create_result
+  run_once: true
+  no_log: true
+
+- name: Debug content selector create decision
+  ansible.builtin.debug:
+    msg: "Creating content selector {{ item.item.name }} because status={{ item.status }}"
+  loop: "{{ nexus_content_selector_current.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: item.status == 404
+  run_once: true
+
+# ----------------------------
+# Update content selectors when drift detected
+# ----------------------------
+- name: Update content selector when drift detected
+  ansible.builtin.uri:
+    url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_listen_port }}/service/rest/v1/security/content-selectors/{{ item.item.name }}"
+    method: PUT
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      name: "{{ item.item.name }}"
+      description: "{{ item.item.description | default('') }}"
+      expression: "{{ item.item.expression }}"
+    status_code: [200, 204]
+    return_content: true
+  loop: "{{ nexus_content_selector_current.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - item.status == 200
+    - >
+      (item.json.name | default('')) != (item.item.name | default('')) or
+      (item.json.description | default('')) != (item.item.description | default('')) or
+      (item.json.expression | default('')) != (item.item.expression | default(''))
+  register: nexus_content_selector_update_result
+  run_once: true
+  no_log: true
+
+- name: Debug content selector update decision
+  ansible.builtin.debug:
+    msg: "Updating content selector {{ item.item.name }} because drift was detected"
+  loop: "{{ nexus_content_selector_current.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - item.status == 200
+    - >
+      (item.json.name | default('')) != (item.item.name | default('')) or
+      (item.json.description | default('')) != (item.item.description | default('')) or
+      (item.json.expression | default('')) != (item.item.expression | default(''))
+  run_once: true

@@ -1,0 +1,106 @@
+# -----------------------------------
+# Nexus Version & Install
+# -----------------------------------
+#nexus_version: "3.84.1-01"
+nexus_version: "3.88.0-08"
+
+nexus_install_dir: /opt/sonatype
+nexus_home: "{{ nexus_install_dir }}/nexus"
+nexus_extracted_dir: "{{ nexus_install_dir }}/nexus-{{ nexus_version }}"
+nexus_data_dir: /opt/sonatype/sonatype-work/nexus3
+nexus_tmp_dir: /var/tmp
+nexus_service_name: nexus
+
+
+
+# -----------------------------------
+# Nexus Download (archive format)
+# -----------------------------------
+nexus_archive_name: "nexus-{{ nexus_version }}-linux-x86_64.tar.gz"
+nexus_download_url: "https://download.sonatype.com/nexus/3/{{ nexus_archive_name }}"
+nexus_archive_path: "{{ nexus_tmp_dir }}/{{ nexus_archive_name }}"
+
+# -----------------------------------
+# Java
+# -----------------------------------
+nexus_java_package: openjdk-17-jre-headless
+
+# -----------------------------------
+# Nexus Runtime Settings
+# -----------------------------------
+nexus_listen_host: "0.0.0.0"
+nexus_listen_port: 8081
+nexus_context_path: /
+
+# -----------------------------------
+# PostgreSQL Configuration
+# -----------------------------------
+nexus_manage_postgres: false
+
+nexus_postgres_host: "postgres"
+nexus_postgres_port: 5432
+nexus_postgres_db: "nexus"
+nexus_postgres_user: "nexus"
+nexus_postgres_password: "{{ vault_nexus_postgres_password }}"
+nexus_postgres_schema: "nexus"
+
+nexus_postgres_jdbc_params:
+  currentSchema: nexus
+
+nexus_postgres_max_pool_size: 100
+nexus_postgres_max_lifetime_ms: 1800000
+
+# -----------------------------------
+# Nexus Mode
+# -----------------------------------
+nexus_use_systemd: false   # 'false' for Docker based hosts
+nexus_ha_enabled: true
+nexus_user_shell: ""
+
+# -----------------------------------
+# JVM tuning
+# -----------------------------------
+nexus_extra_java_opts:
+  - "-Xms2g"
+  - "-Xmx2g"
+  - "-XX:MaxDirectMemorySize=2g"
+
+# -----------------------------------
+# License
+# -----------------------------------
+nexus_license_enabled: true
+nexus_license_src: "files/sonatype-license.lic"
+nexus_license_dest: "/opt/license/sonatype-license.lic"
+
+# -----------------------------------
+# Archive / Upgrade Controls
+# -----------------------------------
+nexus_upgrade_enabled: false
+
+# -----------------------------------
+# Health check
+# -----------------------------------
+nexus_healthcheck_scheme: "http"
+nexus_healthcheck_host: "127.0.0.1"
+nexus_healthcheck_port: 8081
+nexus_healthcheck_path: "/"
+nexus_healthcheck_status_code: 200
+nexus_healthcheck_retries: 30
+nexus_healthcheck_delay: 10
+
+# -----------------------------------
+# Optional LB commands
+# -----------------------------------
+nexus_lb_drain_command: ""
+nexus_lb_add_command: ""
+#Examples: 
+#nexus_lb_drain_command: "aws elbv2 deregister-targets --target-group-arn ... --targets Id={{ inventory_hostname }}"
+#nexus_lb_add_command: "aws elbv2 register-targets --target-group-arn ... --targets Id={{ inventory_hostname }}"
+
+
+# -----------------------------------
+#Add Nexus Repository Credentials here after resetting the original password
+# -----------------------------------
+nexus_admin_username: "admin"
+nexus_admin_password: "{{ vault_nexus_admin_password }}"
+# Credentials are stored in encrypted secrets.yml with Ansible Vault

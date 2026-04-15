@@ -1,0 +1,14 @@
+nexus_blobstores:
+  - name: default-file
+    type: file
+    path: /mnt/nexus-blobs/default
+    softQuota:
+      type: spaceRemainingQuota
+      limit: 10240
+
+ # - name: docker-blobs
+    #type: s3
+    ##bucket: my-nexus-docker
+    #region: us-east-1
+    #prefix: docker/
+    #expiration: 30

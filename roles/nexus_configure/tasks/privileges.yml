@@ -1,0 +1,326 @@
+---
+# ----------------------------
+# Validate required privilege fields
+# ----------------------------
+- name: Validate required privilege fields
+  ansible.builtin.assert:
+    that:
+      - item.type is defined
+      - item.name is defined
+      - item.name | length > 0
+      - item.description is defined
+      - item.description | length >= 0
+      - >
+        (
+          item.type == 'repository-view' and
+          item.format is defined and
+          item.repository is defined and
+          item.actions is defined
+        ) or
+        (
+          item.type == 'application' and
+          item.domain is defined and
+          item.actions is defined
+        ) or
+        (
+          item.type == 'repository-content-selector' and
+          item.selector is defined and
+          item.selector | length > 0 and
+          item.format is defined and
+          item.repository is defined and
+          item.actions is defined
+        )
+    fail_msg: "Privilege {{ item.name | default('UNKNOWN') }} is missing required fields for type {{ item.type | default('UNKNOWN') }}"
+  loop: "{{ nexus_privileges | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  run_once: true
+
+# ----------------------------
+# Read current privileges
+# ----------------------------
+- name: Read current Nexus privilege
+  ansible.builtin.uri:
+    url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_listen_port }}/service/rest/v1/security/privileges/{{ item.name }}"
+    method: GET
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200, 404]
+    return_content: true
+  loop: "{{ nexus_privileges | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: nexus_privilege_current
+  run_once: true
+  no_log: true
+
+- name: Debug current Nexus privilege lookup
+  ansible.builtin.debug:
+    msg: "Privilege {{ item.item.name }} lookup returned status={{ item.status }}"
+  loop: "{{ nexus_privilege_current.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  run_once: true
+
+# ----------------------------
+# Create repository-view privileges when missing
+# ----------------------------
+- name: Create repository-view privilege when missing
+  ansible.builtin.uri:
+    url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_listen_port }}/service/rest/v1/security/privileges/repository-view"
+    method: POST
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      name: "{{ item.item.name }}"
+      description: "{{ item.item.description | default('') }}"
+      format: "{{ item.item.format }}"
+      repository: "{{ item.item.repository }}"
+      actions: "{{ item.item.actions | default([]) | map('upper') | list }}"
+    status_code: [200, 201, 204]
+    return_content: true
+  loop: "{{ nexus_privilege_current.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - item.status == 404
+    - item.item.type == 'repository-view'
+  register: nexus_repository_view_privilege_create_result
+  run_once: true
+  no_log: true
+
+# ----------------------------
+# Create application privileges when missing
+# ----------------------------
+- name: Create application privilege when missing
+  ansible.builtin.uri:
+    url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_listen_port }}/service/rest/v1/security/privileges/application"
+    method: POST
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      name: "{{ item.item.name }}"
+      description: "{{ item.item.description | default('') }}"
+      domain: "{{ item.item.domain }}"
+      actions: "{{ item.item.actions | default([]) | map('upper') | list }}"
+    status_code: [200, 201, 204]
+    return_content: true
+  loop: "{{ nexus_privilege_current.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - item.status == 404
+    - item.item.type == 'application'
+  register: nexus_application_privilege_create_result
+  run_once: true
+  no_log: true
+
+# ----------------------------
+# Create repository-content-selector privileges when missing
+# ----------------------------
+- name: Create repository-content-selector privilege when missing
+  ansible.builtin.uri:
+    url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_listen_port }}/service/rest/v1/security/privileges/repository-content-selector"
+    method: POST
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      name: "{{ item.item.name }}"
+      description: "{{ item.item.description | default('') }}"
+      contentSelector: "{{ item.item.selector }}"
+      repository: "{{ item.item.repository }}"
+      format: "{{ item.item.format }}"
+      actions: "{{ item.item.actions | default([]) | map('upper') | list }}"
+    status_code: [200, 201, 204]
+    return_content: true
+  loop: "{{ nexus_privilege_current.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - item.status == 404
+    - item.item.type == 'repository-content-selector'
+  register: nexus_repository_content_selector_privilege_create_result
+  run_once: true
+  no_log: true
+
+# ----------------------------
+# Delete repository-view privileges when drift detected
+# ----------------------------
+- name: Delete repository-view privilege when drift detected
+  ansible.builtin.uri:
+    url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_listen_port }}/service/rest/v1/security/privileges/{{ item.item.name }}"
+    method: DELETE
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200, 204]
+    return_content: true
+  loop: "{{ nexus_privilege_current.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - item.status == 200
+    - item.item.type == 'repository-view'
+    - not (item.json.readOnly | default(false) | bool)
+    - >
+      (item.json.name | default('')) != (item.item.name | default('')) or
+      (item.json.description | default('')) != (item.item.description | default('')) or
+      (item.json.format | default('')) != (item.item.format | default('')) or
+      (item.json.repository | default('')) != (item.item.repository | default('')) or
+      ((item.json.actions | default([]) | map('upper') | list) | sort) !=
+      ((item.item.actions | default([]) | map('upper') | list) | sort)
+  register: nexus_repository_view_privilege_delete_result
+  run_once: true
+  no_log: true
+
+- name: Recreate repository-view privilege after drift delete
+  ansible.builtin.uri:
+    url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_listen_port }}/service/rest/v1/security/privileges/repository-view"
+    method: POST
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      name: "{{ item.item.item.name }}"
+      description: "{{ item.item.item.description | default('') }}"
+      format: "{{ item.item.item.format }}"
+      repository: "{{ item.item.item.repository }}"
+      actions: "{{ item.item.item.actions | default([]) | map('upper') | list }}"
+    status_code: [200, 201, 204]
+    return_content: true
+  loop: "{{ nexus_repository_view_privilege_delete_result.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.item.name }}"
+  when:
+    - item.changed | default(false)
+  register: nexus_repository_view_privilege_recreate_result
+  run_once: true
+  no_log: true
+
+# ----------------------------
+# Delete application privileges when drift detected
+# ----------------------------
+- name: Delete application privilege when drift detected
+  ansible.builtin.uri:
+    url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_listen_port }}/service/rest/v1/security/privileges/{{ item.item.name }}"
+    method: DELETE
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200, 204]
+    return_content: true
+  loop: "{{ nexus_privilege_current.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - item.status == 200
+    - item.item.type == 'application'
+    - not (item.json.readOnly | default(false) | bool)
+    - >
+      (item.json.name | default('')) != (item.item.name | default('')) or
+      (item.json.description | default('')) != (item.item.description | default('')) or
+      (item.json.domain | default('')) != (item.item.domain | default('')) or
+      ((item.json.actions | default([]) | map('upper') | list) | sort) !=
+      ((item.item.actions | default([]) | map('upper') | list) | sort)
+  register: nexus_application_privilege_delete_result
+  run_once: true
+  no_log: true
+
+- name: Recreate application privilege after drift delete
+  ansible.builtin.uri:
+    url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_listen_port }}/service/rest/v1/security/privileges/application"
+    method: POST
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      name: "{{ item.item.item.name }}"
+      description: "{{ item.item.item.description | default('') }}"
+      domain: "{{ item.item.item.domain }}"
+      actions: "{{ item.item.item.actions | default([]) | map('upper') | list }}"
+    status_code: [200, 201, 204]
+    return_content: true
+  loop: "{{ nexus_application_privilege_delete_result.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.item.name }}"
+  when:
+    - item.changed | default(false)
+  register: nexus_application_privilege_recreate_result
+  run_once: true
+  no_log: true
+
+# ----------------------------
+# Delete repository-content-selector privileges when drift detected
+# ----------------------------
+- name: Delete repository-content-selector privilege when drift detected
+  ansible.builtin.uri:
+    url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_listen_port }}/service/rest/v1/security/privileges/{{ item.item.name }}"
+    method: DELETE
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200, 204]
+    return_content: true
+  loop: "{{ nexus_privilege_current.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - item.status == 200
+    - item.item.type == 'repository-content-selector'
+    - not (item.json.readOnly | default(false) | bool)
+    - >
+      (item.json.name | default('')) != (item.item.name | default('')) or
+      (item.json.description | default('')) != (item.item.description | default('')) or
+      (item.json.contentSelector | default('')) != (item.item.selector | default('')) or
+      (item.json.repository | default('')) != (item.item.repository | default('')) or
+      (item.json.format | default('')) != (item.item.format | default('')) or
+      ((item.json.actions | default([]) | map('upper') | list) | sort) !=
+      ((item.item.actions | default([]) | map('upper') | list) | sort)
+  register: nexus_repository_content_selector_privilege_delete_result
+  run_once: true
+  no_log: true
+
+- name: Recreate repository-content-selector privilege after drift delete
+  ansible.builtin.uri:
+    url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_listen_port }}/service/rest/v1/security/privileges/repository-content-selector"
+    method: POST
+    user: "{{ nexus_admin_username }}"
+    password: "{{ nexus_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      name: "{{ item.item.item.name }}"
+      description: "{{ item.item.item.description | default('') }}"
+      contentSelector: "{{ item.item.item.selector }}"
+      repository: "{{ item.item.item.repository }}"
+      format: "{{ item.item.item.format }}"
+      actions: "{{ item.item.item.actions | default([]) | map('upper') | list }}"
+    status_code: [200, 201, 204]
+    return_content: true
+  loop: "{{ nexus_repository_content_selector_privilege_delete_result.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.item.name }}"
+  when:
+    - item.changed | default(false)
+  register: nexus_repository_content_selector_privilege_recreate_result
+  run_once: true
+  no_log: true

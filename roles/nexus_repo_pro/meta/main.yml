@@ -1,0 +1,23 @@
+---
+galaxy_info:
+  role_name: nexus_repo_pro
+  author: OpenAI
+  description: Install and deploy Sonatype Nexus Repository Pro, configure external PostgreSQL, HA settings, and health checks
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+  galaxy_tags:
+    - nexus
+    - sonatype
+    - repository
+    - postgres
+    - ha
+dependencies: []

@@ -1,0 +1,5 @@
+jdbcUrl=jdbc\:postgresql\://{{ nexus_postgres_host }}\:{{ nexus_postgres_port }}/{{ nexus_postgres_db }}?currentSchema=${storeName}
+username={{ nexus_postgres_user }}
+password={{ nexus_postgres_password }}
+maximumPoolSize={{ nexus_postgres_max_pool_size }}
+advanced=maxLifetime={{ nexus_postgres_max_lifetime_ms }}

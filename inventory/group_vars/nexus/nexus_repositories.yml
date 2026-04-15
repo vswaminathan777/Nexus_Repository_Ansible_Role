@@ -1,0 +1,126 @@
+nexus_manage_repositories: true
+
+nexus_repositories:
+
+  # =========================
+  # Maven Hosted (full example)
+  # =========================
+  - name: internal
+    format: maven2
+    type: hosted
+
+    blob_store: default
+    strict_content_type_validation: true
+    write_policy: ALLOW_ONCE
+
+    cleanup_policies:
+      - test
+
+    proprietary_components: true
+
+    version_policy: MIXED        # RELEASE | SNAPSHOT | MIXED
+    layout_policy: PERMISSIVE        # STRICT | PERMISSIVE
+    content_disposition: ATTACHMENT   # INLINE | ATTACHMENT
+
+
+  - name: internal_sde
+    format: maven2
+    type: hosted
+
+    blob_store: default
+    strict_content_type_validation: true
+    write_policy: ALLOW_ONCE
+
+    cleanup_policies:
+      - test
+
+    proprietary_components: true
+
+    version_policy: MIXED        # RELEASE | SNAPSHOT | MIXED
+    layout_policy: PERMISSIVE        # STRICT | PERMISSIVE
+    content_disposition: ATTACHMENT   # INLINE | ATTACHMENT
+
+
+
+  # =========================
+  # Maven Proxy
+  # =========================
+  - name: maven-central
+    format: maven2
+    type: proxy
+
+    blob_store: default
+    remote_url: https://repo1.maven.org/maven2/
+
+    content_max_age: 1440
+    metadata_max_age: 1440
+
+  # =========================
+  # Maven Group
+  # =========================
+  - name: maven-all
+    format: maven2
+    type: group
+
+    blob_store: default
+    members:
+      - internal
+      - maven-central
+
+  # =========================
+  # NPM Hosted
+  # =========================
+  - name: npm-internal
+    format: npm
+    type: hosted
+
+    blob_store: default
+    strict_content_type_validation: true
+
+  # =========================
+  # NPM Proxy
+  # =========================
+  - name: npmjs
+    format: npm
+    type: proxy
+
+    blob_store: default
+    remote_url: https://registry.npmjs.org/
+
+  # =========================
+  # Docker Hosted
+  # =========================
+  - name: docker-internal
+    format: docker
+    type: hosted
+
+    blob_store: default
+
+    http_port: 3000
+    docker_v1_enabled: false
+    force_basic_auth: true
+
+  # =========================
+  # Docker Proxy
+  # =========================
+  - name: docker-hub
+    format: docker
+    type: proxy
+
+    blob_store: default
+    remote_url: https://registry-1.docker.io
+
+    docker_index_type: HUB
+    cache_foreign_layers: false
+
+  # =========================
+  # Docker Group
+  # =========================
+  - name: docker-all
+    format: docker
+    type: group
+
+    blob_store: default
+    members:
+      - docker-internal
+      - docker-hub

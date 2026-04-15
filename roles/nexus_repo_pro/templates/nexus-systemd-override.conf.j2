@@ -1,0 +1,6 @@
+[Service]
+Environment="INSTALL4J_ADD_VM_PARAMS={% for opt in nexus_extra_java_opts %}{{ opt }} {% endfor %}"
+LimitNOFILE=65536
+TimeoutStartSec=600
+TimeoutStopSec=600
+Restart=on-failure

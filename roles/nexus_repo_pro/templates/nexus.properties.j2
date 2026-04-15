@@ -1,0 +1,9 @@
+application-host={{ nexus_listen_host }}
+application-port={{ nexus_listen_port }}
+nexus-context-path={{ nexus_context_path }}
+nexus.datastore.enabled=true
+nexus.zero.downtime.enabled=true
+nexus.datastore.clustered.enabled={{ nexus_ha_enabled | bool | lower }}
+{% if nexus_license_enabled | bool %}
+nexus.licenseFile={{ nexus_license_dest }}
+{% endif %}

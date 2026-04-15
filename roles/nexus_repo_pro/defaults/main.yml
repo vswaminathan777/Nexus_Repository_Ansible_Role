@@ -1,0 +1,128 @@
+---
+nexus_version: "3.84.1-01"
+nexus_edition: "pro"
+
+nexus_user: "nexus"
+nexus_group: "nexus"
+
+nexus_install_dir: "/opt/sonatype"
+nexus_home: "{{ nexus_install_dir }}/nexus-{{ nexus_version }}"
+nexus_data_dir: "{{ nexus_install_dir }}/sonatype-work/nexus3"
+nexus_tmp_dir: "/var/tmp"
+
+nexus_listen_host: "0.0.0.0"
+nexus_listen_port: 8081
+nexus_context_path: "/"
+
+nexus_java_package: "openjdk-17-jre-headless"
+
+nexus_use_systemd: true
+nexus_user_shell: ""
+
+nexus_service_name: "nexus"
+
+nexus_admin_password: "admin123"
+
+nexus_run_installer: true
+nexus_upgrade_enabled: false
+
+nexus_installer_name: "nexus-installer-{{ nexus_version }}-linux-x86_64.bin"
+nexus_download_url: "https://download.sonatype.com/nexus/3/{{ nexus_installer_name }}"
+nexus_installer_path: "{{ nexus_tmp_dir }}/{{ nexus_installer_name }}"
+
+nexus_manage_postgres: true
+nexus_ha_enabled: true
+
+nexus_postgres_host: "db.example.com"
+nexus_postgres_port: 5432
+nexus_postgres_db: "nexus"
+nexus_postgres_user: "nexus"
+nexus_postgres_password: "change_me"
+nexus_postgres_schema: "nexus"
+
+nexus_postgres_jdbc_params: {}
+nexus_postgres_max_pool_size: 100
+nexus_postgres_max_lifetime_ms: 1800000
+
+nexus_postgres_admin_host: "{{ nexus_postgres_host }}"
+nexus_postgres_admin_port: "{{ nexus_postgres_port }}"
+nexus_postgres_admin_db: "postgres"
+nexus_postgres_admin_user: "postgres"
+nexus_postgres_admin_password: ""
+
+nexus_license_enabled: false
+nexus_license_src: ""
+nexus_license_dest: "/opt/license/sonatype-license.lic"
+
+nexus_extra_java_opts: []
+
+nexus_healthcheck_scheme: "http"
+nexus_healthcheck_host: "127.0.0.1"
+nexus_healthcheck_port: "{{ nexus_listen_port }}"
+nexus_healthcheck_path: "/"
+nexus_healthcheck_status_code: 200
+nexus_healthcheck_retries: 30
+nexus_healthcheck_delay: 10
+
+nexus_lb_drain_command: ""
+nexus_lb_add_command: ""
+
+
+#switch to control blobstore automation tasks- tasks/blobstores.yml
+nexus_blobstores: []
+nexus_manage_blobstores: true
+
+nexus_repositories: []
+nexus_manage_repositories: true
+
+nexus_repo_endpoints:
+  maven2_hosted:
+    create: /service/rest/v1/repositories/maven/hosted
+    read: /service/rest/v1/repositories/maven/hosted
+    update: /service/rest/v1/repositories/maven/hosted
+  maven2_proxy:
+    create: /service/rest/v1/repositories/maven/proxy
+    read: /service/rest/v1/repositories/maven/proxy
+    update: /service/rest/v1/repositories/maven/proxy
+  maven2_group:
+    create: /service/rest/v1/repositories/maven/group
+    read: /service/rest/v1/repositories/maven/group
+    update: /service/rest/v1/repositories/maven/group
+  npm_hosted:
+    create: /service/rest/v1/repositories/npm/hosted
+    read: /service/rest/v1/repositories/npm/hosted
+    update: /service/rest/v1/repositories/npm/hosted
+  npm_proxy:
+    create: /service/rest/v1/repositories/npm/proxy
+    read: /service/rest/v1/repositories/npm/proxy
+    update: /service/rest/v1/repositories/npm/proxy
+  npm_group:
+    create: /service/rest/v1/repositories/npm/group
+    read: /service/rest/v1/repositories/npm/group
+    update: /service/rest/v1/repositories/npm/group
+  docker_hosted:
+    create: /service/rest/v1/repositories/docker/hosted
+    read: /service/rest/v1/repositories/docker/hosted
+    update: /service/rest/v1/repositories/docker/hosted
+  docker_proxy:
+    create: /service/rest/v1/repositories/docker/proxy
+    read: /service/rest/v1/repositories/docker/proxy
+    update: /service/rest/v1/repositories/docker/proxy
+  docker_group:
+    create: /service/rest/v1/repositories/docker/group
+    read: /service/rest/v1/repositories/docker/group
+    update: /service/rest/v1/repositories/docker/group
+nexus_roles_manage: true
+nexus_roles: []
+
+nexus_privileges_manage: true
+nexus_privileges: []
+
+nexus_users_manage: true
+nexus_users: []
+
+nexus_selector_privileges_manage: true
+nexus_selector_privileges: []
+
+nexus_content_selectors_manage: true
+nexus_content_selectors: []

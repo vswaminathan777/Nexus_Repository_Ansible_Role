@@ -1,0 +1,165 @@
+---
+# Nexus Configuration Role Defaults
+# These variables control the configuration of blob stores, repositories, content selectors, privileges, and roles
+
+# Admin credentials (should be overridden at runtime or in inventory)
+nexus_admin_username: "admin"
+nexus_admin_password: "admin123"
+
+# API connectivity
+nexus_healthcheck_scheme: "http"
+nexus_healthcheck_host: "127.0.0.1"
+nexus_healthcheck_port: "8081"
+nexus_listen_port: "8081"
+
+# Service details
+nexus_service_name: "nexus"
+nexus_user: "nexus"
+nexus_group: "nexus"
+nexus_install_dir: "/opt/sonatype"
+nexus_version: "3.84.1-01"
+nexus_home: "{{ nexus_install_dir }}/nexus-{{ nexus_version }}"
+nexus_data_dir: "{{ nexus_install_dir }}/sonatype-work/nexus3"
+
+# Feature flags for configuration management
+nexus_manage_blobstores: true
+nexus_manage_repositories: true
+nexus_content_selectors_manage: true
+nexus_privileges_manage: true
+nexus_roles_manage: true
+
+# Blob stores configuration
+nexus_blobstores: []
+
+# Repositories configuration
+nexus_repositories: []
+
+# Map inventory format names to Nexus REST API path segments.
+# Most formats map 1:1; maven2 is the notable exception.
+nexus_repo_format_api_map:
+  maven2: maven
+
+# Supported repository recipes and generic rules used by tasks/manage_one_repository.yml
+nexus_repo_supported_formats:
+  - maven2
+  - npm
+  - docker
+
+nexus_repo_supported_types:
+  - hosted
+  - proxy
+  - group
+
+nexus_repo_required_fields:
+  default:
+    - name
+    - blob_store
+  proxy:
+    - remote_url
+  group:
+    - members
+  docker_hosted:
+    - http_port
+
+# Base fragments for desired payload construction
+nexus_repo_type_desired_fragments:
+  hosted:
+    storage:
+      writePolicy: "{{ (nexus_repo.write_policy | default('ALLOW')) | upper }}"
+  proxy:
+    proxy:
+      remoteUrl: "{{ nexus_repo.remote_url }}"
+      contentMaxAge: "{{ nexus_repo.content_max_age | default(1440) }}"
+      metadataMaxAge: "{{ nexus_repo.metadata_max_age | default(1440) }}"
+    negativeCache:
+      enabled: "{{ nexus_repo.negative_cache_enabled | default(true) }}"
+      timeToLive: "{{ nexus_repo.negative_cache_ttl | default(1440) }}"
+    httpClient:
+      blocked: "{{ nexus_repo.http_client_blocked | default(false) }}"
+      autoBlock: "{{ nexus_repo.http_client_auto_block | default(true) }}"
+  group:
+    group:
+      memberNames: "{{ nexus_repo.members }}"
+
+nexus_repo_format_desired_fragments:
+  maven2:
+    cleanup:
+      policyNames: "{{ nexus_repo.cleanup_policies | default([]) }}"
+    maven:
+      versionPolicy: "{{ (nexus_repo.version_policy | default('RELEASE')) | upper }}"
+      layoutPolicy: "{{ (nexus_repo.layout_policy | default('STRICT')) | upper }}"
+  docker:
+    docker:
+      v1Enabled: "{{ nexus_repo.docker_v1_enabled | default(false) }}"
+      forceBasicAuth: "{{ nexus_repo.force_basic_auth | default(true) }}"
+
+nexus_repo_recipe_desired_fragments:
+  maven2_hosted:
+    storage:
+      writePolicy: "{{ (nexus_repo.write_policy | default('ALLOW_ONCE')) | upper }}"
+    component:
+      proprietaryComponents: "{{ nexus_repo.proprietary_components | default(false) }}"
+  docker_hosted:
+    docker:
+      httpPort: "{{ nexus_repo.http_port }}"
+  docker_proxy:
+    dockerProxy:
+      indexType: "{{ nexus_repo.docker_index_type | default('HUB') }}"
+      cacheForeignLayers: "{{ nexus_repo.cache_foreign_layers | default(false) }}"
+      foreignLayerUrlWhitelist: "{{ nexus_repo.foreign_layer_url_whitelist | default([]) }}"
+      useTrustStoreForIndexAccess: "{{ nexus_repo.use_trust_store_for_index_access | default(false) }}"
+
+# Base fragments for current payload normalization
+nexus_repo_type_current_fragments:
+  hosted:
+    storage:
+      writePolicy: "{{ nexus_repo_current.json.storage.writePolicy }}"
+  proxy:
+    proxy:
+      remoteUrl: "{{ nexus_repo_current.json.proxy.remoteUrl }}"
+      contentMaxAge: "{{ nexus_repo_current.json.proxy.contentMaxAge | default(1440) }}"
+      metadataMaxAge: "{{ nexus_repo_current.json.proxy.metadataMaxAge | default(1440) }}"
+    negativeCache:
+      enabled: "{{ nexus_repo_current.json.negativeCache.enabled | default(true) }}"
+      timeToLive: "{{ nexus_repo_current.json.negativeCache.timeToLive | default(1440) }}"
+    httpClient:
+      blocked: "{{ nexus_repo_current.json.httpClient.blocked | default(false) }}"
+      autoBlock: "{{ nexus_repo_current.json.httpClient.autoBlock | default(true) }}"
+  group:
+    group:
+      memberNames: "{{ nexus_repo_current.json.group.memberNames | default([]) }}"
+
+nexus_repo_format_current_fragments:
+  maven2:
+    cleanup:
+      policyNames: "{{ nexus_repo_current.json.cleanup.policyNames | default([]) }}"
+    maven:
+      versionPolicy: "{{ nexus_repo_current.json.maven.versionPolicy | default('RELEASE') }}"
+      layoutPolicy: "{{ nexus_repo_current.json.maven.layoutPolicy | default('STRICT') }}"
+  docker:
+    docker:
+      v1Enabled: "{{ nexus_repo_current.json.docker.v1Enabled | default(false) }}"
+      forceBasicAuth: "{{ nexus_repo_current.json.docker.forceBasicAuth | default(true) }}"
+
+nexus_repo_recipe_current_fragments:
+  maven2_hosted:
+    component:
+      proprietaryComponents: "{{ nexus_repo_current.json.component.proprietaryComponents | default(false) }}"
+  docker_hosted:
+    docker:
+      httpPort: "{{ nexus_repo_current.json.docker.httpPort }}"
+  docker_proxy:
+    dockerProxy:
+      indexType: "{{ nexus_repo_current.json.dockerProxy.indexType | default('HUB') }}"
+      cacheForeignLayers: "{{ nexus_repo_current.json.dockerProxy.cacheForeignLayers | default(false) }}"
+      foreignLayerUrlWhitelist: "{{ nexus_repo_current.json.dockerProxy.foreignLayerUrlWhitelist | default([]) }}"
+      useTrustStoreForIndexAccess: "{{ nexus_repo_current.json.dockerProxy.useTrustStoreForIndexAccess | default(false) }}"
+
+# Content selectors configuration
+nexus_content_selectors: []
+
+# Privileges configuration
+nexus_privileges: []
+
+# Roles configuration
+nexus_roles: []

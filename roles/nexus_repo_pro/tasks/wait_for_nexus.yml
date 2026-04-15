@@ -1,0 +1,9 @@
+- name: Wait for Nexus API
+  uri:
+    url: "{{ nexus_healthcheck_scheme }}://{{ nexus_healthcheck_host }}:{{ nexus_healthcheck_port }}/service/rest/v1/status"
+    method: GET
+    status_code: [200, 401, 403]
+  register: result
+  retries: 30
+  delay: 10
+  until: result.status in [200, 401, 403]

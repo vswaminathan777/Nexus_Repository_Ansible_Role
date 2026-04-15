@@ -1,0 +1,35 @@
+---
+- name: Validate required database vars
+  ansible.builtin.assert:
+    that:
+      - nexus_postgres_host | length > 0
+      - nexus_postgres_db | length > 0
+      - nexus_postgres_user | length > 0
+      - nexus_postgres_password | length > 0
+    fail_msg: PostgreSQL connection variables must be set.
+
+- name: Build JDBC query string
+  ansible.builtin.set_fact:
+    nexus_jdbc_query_string: >-
+      {{
+        nexus_postgres_jdbc_params
+        | dict2items
+        | map(attribute='key')
+        | zip(nexus_postgres_jdbc_params | dict2items | map(attribute='value'))
+        | map('join', '=')
+        | join('&')
+      }}
+
+- name: Build JDBC URL
+  ansible.builtin.set_fact:
+    nexus_jdbc_url: >-
+      {{ 'jdbc:postgresql://' ~ nexus_postgres_host ~ ':' ~ nexus_postgres_port ~ '/' ~ nexus_postgres_db }}{{ '?' ~ nexus_jdbc_query_string if nexus_jdbc_query_string | length > 0 else '' }}
+
+- name: Include Nexus node tasks
+  ansible.builtin.include_tasks: nexus.yml
+
+- name: Wait for Nexus
+  ansible.builtin.include_tasks: wait_for_nexus.yml
+
+- name: Handle admin password bootstrap
+  ansible.builtin.include_tasks: admin_password.yml

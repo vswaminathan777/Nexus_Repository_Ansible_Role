@@ -1,0 +1,19 @@
+---
+nexus_content_selectors_manage: true
+
+nexus_content_selectors:
+  - name: maven-releases-only
+    description: Allow only Maven release paths
+    expression: "format == 'maven2' and path =~ '^/com/company/.*/[^/]+/[^/]+/[^/]+$'"
+
+  - name: npm-internal-scope
+    description: Allow only internal npm scope
+    expression: "format == 'npm' and path =~ '^/@company/'"
+
+  - name: team-a-maven-selector
+    description: Allow Team A Maven artifacts only
+    expression: "format == 'maven2' and path =~ '^/com/company/team-a/.*'"
+
+  - name: team-a-npm-selector
+    description: Allow Team A npm scope only
+    expression: "format == 'npm' and path =~ '^/@team-a/'"

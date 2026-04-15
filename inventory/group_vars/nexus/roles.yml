@@ -1,0 +1,91 @@
+---
+nexus_roles_manage: true
+
+nexus_roles:
+
+  # ----------------------------
+  # Maven Roles
+  # ----------------------------
+  - id: developers-maven-read
+    name: Developers Maven Read
+    description: Read-only access to Maven public group
+    privileges:
+      - nx-repo-maven-public-read
+      - nx-search-read
+
+  - id: ci-maven-deploy
+    name: CI Maven Deploy
+    description: CI deploy to releases and snapshots
+    privileges:
+      - nx-repo-maven-releases-write
+      - nx-repo-maven-snapshots-write
+      - nx-search-read
+
+  # ----------------------------
+  # NPM Roles
+  # ----------------------------
+  - id: developers-npm-read
+    name: Developers NPM Read
+    description: Read npm packages
+    privileges:
+      - nx-repo-npm-group-read
+      - nx-search-read
+
+  - id: ci-npm-publish
+    name: CI NPM Publish
+    description: Publish npm packages
+    privileges:
+      - nx-repo-npm-private-write
+      - nx-search-read
+
+  # ----------------------------
+  # Docker Roles
+  # ----------------------------
+  - id: developers-docker-read
+    name: Developers Docker Read
+    description: Pull docker images
+    privileges:
+      - nx-repo-docker-group-read
+
+  - id: ci-docker-push
+    name: CI Docker Push
+    description: Push docker images
+    privileges:
+      - nx-repo-docker-hosted-write
+
+  # ----------------------------
+  # Composite Role
+  # ----------------------------
+  - id: developer-full-access
+    name: Developer Full Access
+    description: Combined access across formats
+    privileges: []
+    roles:
+      - developers-maven-read
+      - developers-npm-read
+      - developers-docker-read
+
+  # ----------------------------
+  # Admin-lite Role
+  # ----------------------------
+  - id: repo-admin-lite
+    name: Repository Admin Lite
+    description: Manage repositories and artifacts
+    privileges:
+      - nx-repo-maven-releases-write
+      - nx-repo-maven-snapshots-write
+      - nx-repo-npm-private-write
+      - nx-repo-docker-hosted-write
+      - nx-search-read
+      - nx-healthcheck-read
+      
+  - id: repo-admin-lite_sde
+    name: Repository Admin Lite
+    description: Manage repositories and artifacts
+    privileges:
+      - nx-repo-maven-releases-write
+      - nx-repo-maven-snapshots-write
+      - nx-repo-npm-private-write
+      - nx-repo-docker-hosted-write
+      - nx-search-read
+      - nx-healthcheck-read

@@ -1,0 +1,33 @@
+---
+# Nexus Configuration Role - Main Tasks
+# Manages blob stores, repositories, content selectors, privileges, and roles
+
+- name: Include blob store configuration tasks
+  ansible.builtin.include_tasks: blobstores.yml
+  when:
+    - nexus_manage_blobstores | default(true)
+    - (nexus_blobstores | default([])) | length > 0
+
+- name: Include repository configuration tasks
+  ansible.builtin.include_tasks: repositories.yml
+  when:
+    - nexus_manage_repositories | default(true)
+    - (nexus_repositories | default([])) | length > 0
+
+- name: Include content selector configuration tasks
+  ansible.builtin.include_tasks: content_selectors.yml
+  when:
+    - nexus_content_selectors_manage | default(true)
+    - (nexus_content_selectors | default([])) | length > 0
+
+- name: Include privilege configuration tasks
+  ansible.builtin.include_tasks: privileges.yml
+  when:
+    - nexus_privileges_manage | default(true)
+    - (nexus_privileges | default([])) | length > 0
+
+- name: Include role configuration tasks
+  ansible.builtin.include_tasks: roles.yml
+  when:
+    - nexus_roles_manage | default(true)
+    - (nexus_roles | default([])) | length > 0

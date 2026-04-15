@@ -1,0 +1,11 @@
+---
+- name: Deploy and configure Nexus nodes
+  hosts: nexus
+  become: true
+  serial: 1
+  max_fail_percentage: 0
+  roles:
+    - role: nexus_repo_pro
+      tags: [deployment]
+    - role: nexus_configure
+      tags: [configuration]
