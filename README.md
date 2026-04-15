@@ -42,7 +42,6 @@ The playbook configures Nexus nodes and Nexus application objects such as:
 ```text
 .
 |-- ansible.cfg
-|-- requirements.yml
 |-- playbooks/
 |   `-- nexus-playbook.yml
 |-- inventory/
@@ -68,7 +67,6 @@ The playbook configures Nexus nodes and Nexus application objects such as:
 - `inventory/hosts.yml` defines the Nexus hosts
 - `inventory/group_vars/nexus/nexus.yml` contains non-secret Nexus settings
 - `inventory/group_vars/nexus/secrets.yml` contains encrypted secrets
-- `requirements.yml` defines required Ansible collections
 - `ansible.cfg` points Ansible at the inventory, roles path, and Vault password file
 
 ## Prerequisites
@@ -83,12 +81,6 @@ Before running this project, make sure you have:
 ## Required Collections
 
 This repository does not currently require any non-core Ansible collections.
-
-If you later add collection-based modules, you can declare them in `requirements.yml` and install them with:
-
-```bash
-ansible-galaxy collection install -r requirements.yml
-```
 
 ## Inventory Setup
 
