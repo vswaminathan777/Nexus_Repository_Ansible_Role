@@ -1,4 +1,4 @@
-# Nexus Repository Pro HA Ansible Project
+# Nexus Repository Pro HA Ansible Role
 
 This repository manages a highly available Nexus Repository Pro deployment with Ansible.
 
