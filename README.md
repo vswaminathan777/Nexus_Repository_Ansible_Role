@@ -440,8 +440,4 @@ Verify:
 - the target hosts allow the specified user to connect
 - Python is available on the target nodes
 
-## Notes
 
-- `secrets.yml` should stay encrypted in version control
-- the Vault password file should never be committed
-- the two Vault markdown files are now ignored by Git for this workspace
