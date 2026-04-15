@@ -284,33 +284,12 @@ ansible-playbook playbooks/nexus-playbook.yml \
 
 ## Running From Docker
 
-If you usually run Ansible from a container, mount the repository into the container and ensure the Vault password file is also available inside the container.
+If you want to run Ansible from a container, mount the repository into the container and ensure the Vault password file is also available inside the container.
 
 Example pattern:
 
 ```powershell
 docker run -it --rm --network nexus-net -v C:\ansible\nexus:/work ansible-nexus
-```
-
-Command breakdown:
-
-- `docker run` starts a new container
-- `-it` keeps the container interactive so you can work inside a shell
-- `--rm` removes the container automatically when you exit
-- `--network nexus-net` connects the container to the Docker network that can reach `nexus01`, `nexus02`, `nexus03`, and `postgres`
-- `-v C:\ansible\nexus:/work` mounts the host directory into the container so the playbooks, inventory, roles, and config files are available at `/work`
-- `ansible-nexus` is the container image that contains your Ansible runtime
-
-In practice, this command gives you a disposable Ansible execution environment with access to:
-
-- the project files from your Windows host
-- the running Nexus and PostgreSQL containers on the `nexus-net` Docker network
-- the same inventory and playbooks stored in this repository
-
-After the container starts, change into the project directory inside the mount before running Ansible:
-
-```bash
-cd /work/nexus_external_ha_project
 ```
 
 From there, run the playbook from the project directory:
