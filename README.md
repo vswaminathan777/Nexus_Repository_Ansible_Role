@@ -78,10 +78,6 @@ Before running this project, make sure you have:
 - access to the Vault password used for `inventory/group_vars/nexus/secrets.yml`
 - Docker available if you run Ansible from a container
 
-## Required Collections
-
-This repository does not currently require any non-core Ansible collections.
-
 ## Inventory Setup
 
 Update `inventory/hosts.yml` with your Nexus hosts and SSH settings.
