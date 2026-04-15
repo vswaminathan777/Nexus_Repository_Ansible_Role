@@ -356,6 +356,24 @@ If you want Ansible to drain and re-add nodes during a rollout, populate these v
 
 If they are empty, those steps are skipped.
 
+Example value for AWS ALB:
+
+If your Nexus nodes are registered as targets in an AWS Application Load Balancer target group, you can use AWS CLI commands like these:
+
+```yaml
+nexus_lb_drain_command: >-
+  aws elbv2 deregister-targets
+  --target-group-arn arn:aws:elasticloadbalancing:REGION:ACCOUNT_ID:targetgroup/NEXUS_TARGET_GROUP/TARGET_GROUP_ID
+  --targets Id={{ inventory_hostname }}
+
+nexus_lb_add_command: >-
+  aws elbv2 register-targets
+  --target-group-arn arn:aws:elasticloadbalancing:REGION:ACCOUNT_ID:targetgroup/NEXUS_TARGET_GROUP/TARGET_GROUP_ID
+  --targets Id={{ inventory_hostname }}
+```
+
+If your target group uses IP targets instead of instance IDs, replace `Id={{ inventory_hostname }}` with the node IP address.
+
 ## Blob Stores and Repositories
 
 You can define blob stores and repositories under:
